@@ -1,5 +1,9 @@
 -- Run in Supabase SQL Editor (Dashboard → SQL → New query)
--- Disable email confirmation for beta: Authentication → Providers → Email → Confirm email OFF
+--
+-- Auth setup (required):
+-- 1. Authentication → Providers → Email → turn OFF "Confirm email"
+-- 2. Add SUPABASE_SERVICE_ROLE_KEY to .env.local (Settings → API → service_role)
+--    Registration uses /api/auth/register to avoid "email rate limit exceeded"
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,

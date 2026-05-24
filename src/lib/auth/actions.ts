@@ -4,7 +4,9 @@ import { fetchProfileByUserId, upsertProfile } from "@/lib/services/profile";
 import { getSupabase } from "@/lib/supabase/client";
 import type { UserProfile } from "@/lib/types";
 
-export type AuthResult = { ok: true; profile: UserProfile } | { ok: false; message: string };
+export type AuthResult =
+  | { ok: true; profile: UserProfile }
+  | { ok: false; message: string };
 
 export async function signUpWithProfile(input: {
   fullName: string;
@@ -26,47 +28,33 @@ export async function signUpWithProfile(input: {
     return { ok: false, message: "Enter a valid 10-digit mobile number." };
   }
 
-  const supabase = getSupabase();
-  const email = phoneToAuthEmail(phone);
-
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password: input.password,
-    options: {
-      data: {
-        full_name: input.fullName.trim(),
-        phone,
-        vehicle_registration: input.vehicleRegistration,
-      },
-    },
+  const registerResponse = await fetch("/api/auth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fullName: input.fullName.trim(),
+      phone,
+      password: input.password,
+      vehicleRegistration: input.vehicleRegistration,
+      betaCode: input.betaCode,
+    }),
   });
 
-  if (signUpError) {
-    if (signUpError.message.toLowerCase().includes("already registered")) {
+  const registerBody = (await registerResponse.json()) as { error?: string };
+
+  if (!registerResponse.ok) {
+    const message = registerBody.error ?? "Registration failed.";
+    if (message.toLowerCase().includes("rate limit")) {
       return {
         ok: false,
-        message: "This phone is already registered. Log in instead.",
+        message:
+          "Too many sign-up attempts. Wait a few minutes, or add SUPABASE_SERVICE_ROLE_KEY to .env.local to skip email limits.",
       };
     }
-    return { ok: false, message: signUpError.message };
+    return { ok: false, message };
   }
 
-  const userId = signUpData.user?.id;
-  if (!userId) {
-    return { ok: false, message: "Account created but session unavailable. Try logging in." };
-  }
-
-  const profile = await upsertProfile(userId, {
-    fullName: input.fullName.trim(),
-    phone,
-    vehicleRegistration: input.vehicleRegistration,
-  });
-
-  if (!profile) {
-    return { ok: false, message: "Could not save profile. Check database setup." };
-  }
-
-  return { ok: true, profile };
+  return signInWithPhone(phone, input.password);
 }
 
 export async function signInWithPhone(
@@ -85,6 +73,21 @@ export async function signInWithPhone(
   });
 
   if (error) {
+    const msg = error.message.toLowerCase();
+    if (msg.includes("rate limit")) {
+      return {
+        ok: false,
+        message:
+          "Too many attempts. Please wait a few minutes and try signing in again.",
+      };
+    }
+    if (msg.includes("email not confirmed")) {
+      return {
+        ok: false,
+        message:
+          "Account not confirmed. In Supabase, disable “Confirm email” under Authentication → Providers → Email.",
+      };
+    }
     return { ok: false, message: "Invalid phone or password." };
   }
 
@@ -105,7 +108,10 @@ export async function signInWithPhone(
   }
 
   if (!profile) {
-    return { ok: false, message: "Profile not found. Contact support or re-register." };
+    return {
+      ok: false,
+      message: "Profile not found. Ensure supabase/schema.sql has been applied.",
+    };
   }
 
   return { ok: true, profile };
