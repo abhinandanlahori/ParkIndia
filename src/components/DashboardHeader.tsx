@@ -2,68 +2,57 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { logout } from "@/lib/storage";
+import { useAuth } from "@/contexts/AuthContext";
+import Button from "@/components/ui/Button";
 
 type DashboardHeaderProps = {
   title: string;
-  profileName: string;
-  homeHref?: string;
-  accent?: "emerald" | "orange";
   extraLink?: { href: string; label: string };
 };
 
 export default function DashboardHeader({
   title,
-  profileName,
-  homeHref = "/",
-  accent = "emerald",
   extraLink,
 }: DashboardHeaderProps) {
   const router = useRouter();
-  const accentLink =
-    accent === "orange" ? "text-orange-700" : "text-emerald-700";
-  const accentBorder =
-    accent === "orange" ? "border-orange-100" : "border-emerald-100";
-  const badgeBg =
-    accent === "orange" ? "bg-orange-100 text-orange-800" : "bg-emerald-100 text-emerald-800";
+  const { profile, signOut } = useAuth();
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await signOut();
     router.push("/auth");
   }
 
   return (
-    <header
-      className={`border-b ${accentBorder} bg-white/80 backdrop-blur-md`}
-    >
+    <header className="border-b border-zinc-200 bg-white">
       <div className="mx-auto flex max-w-4xl items-center justify-between gap-3 px-4 py-4">
         <div className="min-w-0 flex-1">
-          <Link href={homeHref} className={`text-sm font-semibold ${accentLink}`}>
+          <Link
+            href="/"
+            className="text-sm font-medium text-zinc-500 hover:text-zinc-900"
+          >
             ← ParkIndia
           </Link>
-          <h1 className="mt-1 truncate text-xl font-bold text-slate-900">{title}</h1>
+          <h1 className="mt-0.5 truncate text-lg font-semibold text-zinc-900">
+            {title}
+          </h1>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {extraLink && (
             <Link
               href={extraLink.href}
-              className="hidden rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 sm:inline-flex"
+              className="hidden rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 sm:inline-flex"
             >
               {extraLink.label}
             </Link>
           )}
-          <span
-            className={`hidden max-w-[120px] truncate rounded-full px-3 py-1 text-xs font-medium sm:inline-block ${badgeBg}`}
-          >
-            {profileName}
-          </span>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
-          >
+          {profile && (
+            <span className="hidden max-w-[140px] truncate text-xs text-zinc-500 sm:inline">
+              {profile.fullName}
+            </span>
+          )}
+          <Button variant="secondary" onClick={handleLogout} className="!py-1.5 !text-xs">
             Logout
-          </button>
+          </Button>
         </div>
       </div>
     </header>

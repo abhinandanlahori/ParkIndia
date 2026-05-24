@@ -10,7 +10,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import type { ParkingSpot } from "@/lib/types";
-import { formatINR } from "@/lib/storage";
+import { formatINR } from "@/lib/utils/format";
 
 import "leaflet/dist/leaflet.css";
 

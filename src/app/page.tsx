@@ -2,122 +2,103 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="min-h-full bg-gradient-to-br from-orange-50 via-white to-emerald-50">
-      <header className="border-b border-orange-100/80 bg-white/70 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4 sm:px-6">
+    <div className="min-h-full bg-zinc-50">
+      <header className="border-b border-zinc-200 bg-white">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-emerald-600 text-lg font-bold text-white shadow-md">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 text-sm font-semibold text-white">
               P
             </div>
             <div>
-              <p className="text-lg font-bold tracking-tight text-slate-900">
-                ParkIndia
-              </p>
-              <p className="text-xs text-slate-500">Delhi NCR · Beta</p>
+              <p className="font-semibold text-zinc-900">ParkIndia</p>
+              <p className="text-xs text-zinc-500">Delhi NCR · Beta</p>
             </div>
           </div>
           <Link
             href="/auth"
-            className="rounded-full border border-orange-200 bg-white px-4 py-2 text-sm font-medium text-orange-700 transition hover:border-orange-300 hover:bg-orange-50"
+            className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
           >
-            Log in
+            Sign in
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-        <section className="relative overflow-hidden rounded-3xl border border-orange-100 bg-white p-8 shadow-xl shadow-orange-100/50 sm:p-12">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-orange-200/40 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-10 h-48 w-48 rounded-full bg-emerald-200/40 blur-3xl" />
-
-          <div className="relative max-w-2xl">
-            <span className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-orange-800">
-              🇮🇳 Made for Indian neighbourhoods
-            </span>
-            <h1 className="mt-4 text-4xl font-extrabold leading-tight text-slate-900 sm:text-5xl">
-              Park smarter across{" "}
-              <span className="bg-gradient-to-r from-orange-600 to-emerald-600 bg-clip-text text-transparent">
-                Sector lanes & gated societies
-              </span>
-            </h1>
-            <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              Find verified driveway, basement, and stilt slots near you — or
-              list your unused space and earn daily. Built for Indian addresses,
-              gate protocols, and WhatsApp-first coordination.
-            </p>
-          </div>
+      <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16">
+        <section className="max-w-2xl">
+          <p className="text-xs font-medium uppercase tracking-widest text-zinc-400">
+            Neighbourhood parking
+          </p>
+          <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 sm:text-5xl">
+            Park across sectors and gated societies
+          </h1>
+          <p className="mt-4 text-lg leading-relaxed text-zinc-600">
+            Find verified basement, driveway, and stilt slots — or list your
+            space. One account works on every device: your profile, bookings,
+            and listings stay in sync.
+          </p>
         </section>
 
-        <section className="mt-10 grid gap-6 md:grid-cols-2">
+        <section className="mt-10 grid gap-4 sm:grid-cols-2">
           <Link
             href="/dashboard/driver"
-            className="group rounded-2xl border border-emerald-100 bg-white p-6 shadow-lg shadow-emerald-50 transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl"
+            className="group rounded-xl border border-zinc-200 bg-white p-6 transition hover:border-zinc-300 hover:shadow-sm"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-100 text-2xl">
-              🚗
-            </div>
-            <h2 className="mt-4 text-xl font-bold text-slate-900">
-              Find a Parking Spot
+            <p className="text-sm font-medium text-zinc-500">For drivers</p>
+            <h2 className="mt-2 text-lg font-semibold text-zinc-900">
+              Find a parking spot
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Browse active slots — covered basements, open driveways, stilt
-              bays — across Sector 62, 15, 44 and more.
+            <p className="mt-2 text-sm text-zinc-600">
+              Browse the map, book a slot, and alert your host via WhatsApp at
+              the gate.
             </p>
-            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 transition-all group-hover:gap-3">
-              Browse & book
-              <span aria-hidden>→</span>
+            <span className="mt-4 inline-block text-sm font-medium text-zinc-900 group-hover:underline">
+              Browse spots →
             </span>
           </Link>
 
           <Link
             href="/dashboard/host"
-            className="group rounded-2xl border border-orange-100 bg-white p-6 shadow-lg shadow-orange-50 transition hover:-translate-y-1 hover:border-orange-200 hover:shadow-xl"
+            className="group rounded-xl border border-zinc-200 bg-white p-6 transition hover:border-zinc-300 hover:shadow-sm"
           >
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-100 text-2xl">
-              🏠
-            </div>
-            <h2 className="mt-4 text-xl font-bold text-slate-900">
-              List Your Space
+            <p className="text-sm font-medium text-zinc-500">For hosts</p>
+            <h2 className="mt-2 text-lg font-semibold text-zinc-900">
+              List your space
             </h2>
-            <p className="mt-2 text-sm leading-relaxed text-slate-600">
-              Publish your spot with daily/nightly pricing, structural address,
-              and custom gate instructions for visitors.
+            <p className="mt-2 text-sm text-zinc-600">
+              Set pricing, pin your location on the map, and add gate
+              instructions for visitors.
             </p>
-            <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-orange-700 transition-all group-hover:gap-3">
-              Host a spot
-              <span aria-hidden>→</span>
+            <span className="mt-4 inline-block text-sm font-medium text-zinc-900 group-hover:underline">
+              Host a spot →
             </span>
           </Link>
         </section>
 
-        <section className="mt-10 grid gap-4 sm:grid-cols-3">
+        <section className="mt-12 grid gap-4 border-t border-zinc-200 pt-10 sm:grid-cols-3">
           {[
             {
-              title: "All-state plates",
-              desc: "MH, DL, KA, TN, Bharat (BH) series & more accepted.",
+              title: "One account, any device",
+              desc: "Sign in with phone and password — profile syncs like a modern app.",
             },
             {
-              title: "Gate-ready instructions",
-              desc: "Security guard scripts & WhatsApp alerts to hosts.",
+              title: "Map-first discovery",
+              desc: "See every active spot across Delhi NCR on an interactive map.",
             },
             {
-              title: "Mobile-first cards",
-              desc: "Scan listings quickly on the way to your sector.",
+              title: "Gate-ready workflows",
+              desc: "Indian plates, WhatsApp host alerts, and security instructions built in.",
             },
           ].map((item) => (
-            <div
-              key={item.title}
-              className="rounded-2xl border border-slate-100 bg-white/80 p-5 shadow-sm"
-            >
-              <h3 className="font-semibold text-slate-900">{item.title}</h3>
-              <p className="mt-1 text-sm text-slate-600">{item.desc}</p>
+            <div key={item.title}>
+              <h3 className="text-sm font-semibold text-zinc-900">{item.title}</h3>
+              <p className="mt-1 text-sm text-zinc-500">{item.desc}</p>
             </div>
           ))}
         </section>
       </main>
 
-      <footer className="mt-auto border-t border-orange-100 bg-white/60 py-6 text-center text-sm text-slate-500">
-        ParkIndia Beta · Delhi NCR · Secure neighbourhood parking
+      <footer className="mt-auto border-t border-zinc-200 py-6 text-center text-sm text-zinc-400">
+        ParkIndia Beta · Delhi NCR
       </footer>
     </div>
   );

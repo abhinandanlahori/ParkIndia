@@ -3,26 +3,26 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import DashboardHeader from "@/components/DashboardHeader";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { useAuth } from "@/contexts/AuthContext";
 import { LAYOUT_LABELS } from "@/lib/parking-data";
-import type { Booking, ParkingSpot } from "@/lib/types";
 import {
-  buildWhatsAppGateLink,
-  clearBooking,
-  formatINR,
-  getActiveBooking,
-  getAllActiveSpots,
-  getRegisteredProfile,
-  getStoredProfile,
-  isLoggedIn,
-  saveBooking,
-} from "@/lib/storage";
+  cancelBooking,
+  createBooking,
+  fetchActiveBooking,
+  fetchActiveSpots,
+} from "@/lib/services/parking";
+import type { Booking, ParkingSpot } from "@/lib/types";
+import { formatINR } from "@/lib/utils/format";
+import { buildWhatsAppGateLink } from "@/lib/utils/whatsapp";
 
 const ParkingMap = dynamic(() => import("@/components/ParkingMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-72 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-500 sm:h-96">
+    <div className="flex h-72 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-sm text-zinc-500 sm:h-96">
       Loading map…
     </div>
   ),
@@ -32,46 +32,67 @@ type RateType = "day" | "night";
 
 export default function DriverDashboardPage() {
   const router = useRouter();
+  const { profile, loading: authLoading, isAuthenticated } = useAuth();
+
   const [spots, setSpots] = useState<ParkingSpot[]>([]);
   const [booking, setBooking] = useState<Booking | null>(null);
+  const [dataLoading, setDataLoading] = useState(true);
   const [selectedSpotId, setSelectedSpotId] = useState<string | null>(null);
   const [highlightedSpotId, setHighlightedSpotId] = useState<string | null>(null);
   const [rateType, setRateType] = useState<RateType>("day");
-  const [profileName, setProfileName] = useState("Guest");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setDataLoading(true);
+    try {
+      const [spotsData, bookingData] = await Promise.all([
+        fetchActiveSpots(),
+        profile ? fetchActiveBooking(profile.id) : Promise.resolve(null),
+      ]);
+      setSpots(spotsData);
+      setBooking(bookingData);
+    } finally {
+      setDataLoading(false);
+    }
+  }, [profile]);
 
   useEffect(() => {
-    setSpots(getAllActiveSpots());
-    setBooking(getActiveBooking());
-    const profile = getStoredProfile() ?? getRegisteredProfile();
-    if (profile?.fullName) setProfileName(profile.fullName);
-  }, []);
+    if (!authLoading) {
+      loadData();
+    }
+  }, [authLoading, loadData]);
 
-  const selectedSpot = spots.find((spot) => spot.id === selectedSpotId) ?? null;
+  const selectedSpot = spots.find((s) => s.id === selectedSpotId) ?? null;
 
-  function handleBook(spot: ParkingSpot) {
-    if (!isLoggedIn()) {
+  async function handleBook(spot: ParkingSpot) {
+    if (!isAuthenticated || !profile) {
       router.push("/auth");
       return;
     }
 
-    const profile = getStoredProfile();
-    const newBooking: Booking = {
-      spotId: spot.id,
-      spot,
-      bookedAt: new Date().toISOString(),
-      driverName: profile?.fullName ?? "Guest Driver",
-      driverPhone: profile?.phone ?? "0000000000",
-      vehicleRegistration: profile?.vehicleRegistration ?? "DL 00 XX 0000",
-    };
+    setBookingLoading(true);
+    setActionError(null);
 
-    saveBooking(newBooking);
-    setBooking(newBooking);
+    const created = await createBooking(profile.id, profile, spot, rateType);
+    setBookingLoading(false);
+
+    if (!created) {
+      setActionError("Could not complete booking. Check your connection.");
+      return;
+    }
+
+    setBooking(created);
     setSelectedSpotId(null);
   }
 
-  function handleCancelBooking() {
-    clearBooking();
+  async function handleCancelBooking() {
+    if (!profile || !booking) return;
+
+    setBookingLoading(true);
+    await cancelBooking(profile.id, booking.id);
     setBooking(null);
+    setBookingLoading(false);
   }
 
   function handleSelectSpot(spotId: string) {
@@ -82,98 +103,95 @@ export default function DriverDashboardPage() {
     });
   }
 
+  if (authLoading || dataLoading) {
+    return (
+      <div className="flex min-h-full items-center justify-center bg-zinc-50">
+        <p className="text-sm text-zinc-500">Loading your dashboard…</p>
+      </div>
+    );
+  }
+
   if (booking) {
     const whatsappUrl = buildWhatsAppGateLink(booking);
     const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${booking.spot.latitude},${booking.spot.longitude}`;
 
     return (
-      <div className="min-h-full bg-gradient-to-br from-emerald-50 via-white to-orange-50">
-        <DashboardHeader title="Active Booking" profileName={profileName} />
+      <div className="min-h-full bg-zinc-50">
+        <DashboardHeader title="Active booking" />
 
-        <main className="mx-auto max-w-2xl space-y-6 px-4 py-8">
+        <main className="mx-auto max-w-2xl space-y-4 px-4 py-6">
           <ParkingMap spots={[booking.spot]} heightClassName="h-56 sm:h-64" />
 
-          <div className="rounded-2xl border border-emerald-200 bg-white p-6 shadow-xl shadow-emerald-100/50 sm:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1">
-                <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-800">
-                  Active Booking
-                </span>
-                <h2 className="mt-3 text-2xl font-bold text-slate-900">
-                  {booking.spot.title}
-                </h2>
-                <p className="mt-1 text-sm text-slate-600">{booking.spot.address}</p>
-              </div>
-              <span className="rounded-xl bg-orange-100 px-3 py-2 text-xs font-medium text-orange-800">
-                {booking.vehicleRegistration}
-              </span>
-            </div>
+          <Card>
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+              Confirmed · {booking.rateType}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold text-zinc-900">
+              {booking.spot.title}
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">{booking.spot.address}</p>
+            <p className="mt-2 font-mono text-sm text-zinc-700">
+              {booking.vehicleRegistration}
+            </p>
 
             <a
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-emerald-700 hover:underline"
+              className="mt-4 inline-block text-sm font-medium text-zinc-700 hover:underline"
             >
               Open in Google Maps →
             </a>
 
-            <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Gate Instructions
+            <div className="mt-4 rounded-lg bg-zinc-50 p-3 text-sm text-zinc-600">
+              <p className="text-xs font-medium uppercase text-zinc-400">
+                Gate instructions
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">
-                {booking.spot.gateInstructions}
-              </p>
+              <p className="mt-1">{booking.spot.gateInstructions}</p>
             </div>
 
             <a
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-6 py-4 text-base font-bold text-white shadow-lg shadow-emerald-300/50 transition hover:bg-emerald-700"
+              className="mt-6 flex w-full items-center justify-center rounded-lg bg-zinc-900 py-3.5 text-sm font-semibold text-white hover:bg-zinc-800"
             >
-              <span aria-hidden>📱</span>
               I am at the Gate (Alert Host via WhatsApp)
             </a>
 
-            <button
-              type="button"
+            <Button
+              variant="secondary"
+              fullWidth
+              className="mt-3"
               onClick={handleCancelBooking}
-              className="mt-4 w-full rounded-xl border border-slate-200 py-3 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+              disabled={bookingLoading}
             >
               Cancel booking
-            </button>
-          </div>
+            </Button>
+          </Card>
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-full bg-gradient-to-br from-emerald-50 via-white to-orange-50">
+    <div className="min-h-full bg-zinc-50">
       <DashboardHeader
-        title="Find Parking"
-        profileName={profileName}
-        extraLink={{ href: "/dashboard/host", label: "Host view" }}
+        title="Find parking"
+        extraLink={{ href: "/dashboard/host", label: "Host" }}
       />
 
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <main className="mx-auto max-w-4xl px-4 py-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">
-              Parking map — Delhi NCR
-            </h2>
-            <p className="text-sm text-slate-600">
-              {spots.length} active spots · tap a pin or card to explore
+            <h2 className="text-base font-semibold text-zinc-900">Parking map</h2>
+            <p className="text-sm text-zinc-500">
+              {spots.length} spots in Delhi NCR
             </p>
           </div>
-          {!isLoggedIn() && (
-            <Link
-              href="/auth"
-              className="inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50"
-            >
-              Log in to book
+          {!isAuthenticated && (
+            <Link href="/auth">
+              <Button variant="secondary">Sign in to book</Button>
             </Link>
           )}
         </div>
@@ -182,128 +200,116 @@ export default function DriverDashboardPage() {
           spots={spots}
           selectedSpotId={highlightedSpotId}
           onSelectSpot={handleSelectSpot}
-          className="mb-8"
+          className="mb-6"
         />
+
+        {actionError && (
+          <p className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {actionError}
+          </p>
+        )}
 
         <div className="grid gap-4 sm:grid-cols-2">
           {spots.map((spot) => (
-            <article
+            <Card
               key={spot.id}
               id={`spot-${spot.id}`}
-              className={`flex flex-col rounded-2xl border bg-white p-5 shadow-md transition hover:shadow-lg ${
+              className={
                 highlightedSpotId === spot.id
-                  ? "border-emerald-400 ring-2 ring-emerald-100"
-                  : "border-slate-100 shadow-slate-100/80 hover:border-emerald-200"
-              }`}
+                  ? "ring-2 ring-zinc-300"
+                  : undefined
+              }
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                  <span className="text-xs font-medium text-zinc-500">
                     {LAYOUT_LABELS[spot.layout]}
                   </span>
-                  <h3 className="mt-2 text-lg font-bold text-slate-900">
-                    {spot.title}
-                  </h3>
+                  <h3 className="mt-1 font-semibold text-zinc-900">{spot.title}</h3>
                 </div>
-                <span className="shrink-0 rounded-lg bg-orange-50 px-2 py-1 text-xs font-semibold text-orange-700">
+                <span className="shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600">
                   {spot.sector}
                 </span>
               </div>
 
-              <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-600">
-                {spot.address}
-              </p>
+              <p className="mt-2 text-sm text-zinc-500">{spot.address}</p>
 
               <button
                 type="button"
                 onClick={() => setHighlightedSpotId(spot.id)}
-                className="mt-2 text-left text-xs font-medium text-emerald-700 hover:underline"
+                className="mt-2 text-xs font-medium text-zinc-600 hover:underline"
               >
                 Show on map
               </button>
 
-              <div className="mt-4 flex items-center gap-4 text-sm">
+              <div className="mt-4 flex gap-6 text-sm">
                 <div>
-                  <p className="text-slate-500">Day</p>
-                  <p className="font-bold text-slate-900">
-                    {formatINR(spot.pricePerDay)}
-                  </p>
+                  <p className="text-zinc-400">Day</p>
+                  <p className="font-semibold">{formatINR(spot.pricePerDay)}</p>
                 </div>
                 <div>
-                  <p className="text-slate-500">Night</p>
-                  <p className="font-bold text-slate-900">
-                    {formatINR(spot.pricePerNight)}
-                  </p>
+                  <p className="text-zinc-400">Night</p>
+                  <p className="font-semibold">{formatINR(spot.pricePerNight)}</p>
                 </div>
               </div>
 
-              <button
-                type="button"
+              <Button
+                fullWidth
+                className="mt-4"
                 onClick={() => setSelectedSpotId(spot.id)}
-                className="mt-4 w-full rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
-                Book this spot
-              </button>
-            </article>
+                Book spot
+              </Button>
+            </Card>
           ))}
         </div>
 
         {selectedSpot && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/40 p-4 sm:items-center">
-            <div
-              role="dialog"
-              aria-modal="true"
-              className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white p-6 shadow-2xl"
-            >
-              <h3 className="text-lg font-bold text-slate-900">Confirm booking</h3>
-              <p className="mt-1 text-sm text-slate-600">{selectedSpot.title}</p>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-900/40 p-4 sm:items-center">
+            <Card className="w-full max-w-md">
+              <h3 className="font-semibold text-zinc-900">Confirm booking</h3>
+              <p className="mt-1 text-sm text-zinc-500">{selectedSpot.title}</p>
 
               <div className="mt-4 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setRateType("day")}
-                  className={`flex-1 rounded-xl border py-2 text-sm font-medium transition ${
-                    rateType === "day"
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                      : "border-slate-200 text-slate-600"
-                  }`}
-                >
-                  Day · {formatINR(selectedSpot.pricePerDay)}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRateType("night")}
-                  className={`flex-1 rounded-xl border py-2 text-sm font-medium transition ${
-                    rateType === "night"
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                      : "border-slate-200 text-slate-600"
-                  }`}
-                >
-                  Night · {formatINR(selectedSpot.pricePerNight)}
-                </button>
+                {(["day", "night"] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setRateType(type)}
+                    className={`flex-1 rounded-lg border py-2 text-sm font-medium ${
+                      rateType === type
+                        ? "border-zinc-900 bg-zinc-900 text-white"
+                        : "border-zinc-200 text-zinc-600"
+                    }`}
+                  >
+                    {type === "day"
+                      ? `Day · ${formatINR(selectedSpot.pricePerDay)}`
+                      : `Night · ${formatINR(selectedSpot.pricePerNight)}`}
+                  </button>
+                ))}
               </div>
 
-              <p className="mt-4 rounded-xl bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
+              <p className="mt-4 rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">
                 {selectedSpot.gateInstructions}
               </p>
 
-              <div className="mt-5 flex gap-3">
-                <button
-                  type="button"
+              <div className="mt-5 flex gap-2">
+                <Button
+                  variant="secondary"
+                  className="flex-1"
                   onClick={() => setSelectedSpotId(null)}
-                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-600"
                 >
                   Back
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  className="flex-1"
                   onClick={() => handleBook(selectedSpot)}
-                  className="flex-1 rounded-xl bg-emerald-600 py-2.5 text-sm font-semibold text-white"
+                  disabled={bookingLoading}
                 >
-                  Confirm · {rateType === "day" ? "Day" : "Night"}
-                </button>
+                  {bookingLoading ? "Booking…" : "Confirm"}
+                </Button>
               </div>
-            </div>
+            </Card>
           </div>
         )}
       </main>
